@@ -140,10 +140,7 @@ int main(int argc, const char *argv[])
         bVis = false;
 
         cout << "#4 : CLUSTER LIDAR POINT CLOUD done" << endl;
-        
-        
-        // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
-        continue; // skips directly to the next image without processing what comes beneath
+
 
         /* DETECT IMAGE KEYPOINTS */
 
@@ -153,29 +150,38 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "SHITOMASI";
+        DetectorType detectorType = DetectorType::SIFT;     //// -> HARRIS, FAST, BRISK, ORB, AKAZE, SIFT
+        
+        switch(detectorType){
 
-        if (detectorType.compare("SHITOMASI") == 0)
-        {
-            detKeypointsShiTomasi(keypoints, imgGray, false);
-        }
-        else
-        {
-            //...
-        }
-
-        // optional : limit number of keypoints (helpful for debugging and learning)
-        bool bLimitKpts = false;
-        if (bLimitKpts)
-        {
-            int maxKeypoints = 50;
-
-            if (detectorType.compare("SHITOMASI") == 0)
-            { // there is no response info, so keep the first 50 as they are sorted in descending quality order
-                keypoints.erase(keypoints.begin() + maxKeypoints, keypoints.end());
+            case DetectorType::AKAZE: {
+                detKeypointsModern(keypoints, imgGray, detectorType, false);
+                break;
             }
-            cv::KeyPointsFilter::retainBest(keypoints, maxKeypoints);
-            cout << " NOTE: Keypoints have been limited!" << endl;
+            case DetectorType::BRISK: {
+                detKeypointsModern(keypoints, imgGray, detectorType, false);
+                break;
+            }
+            case DetectorType::FAST: {
+                detKeypointsModern(keypoints, imgGray, detectorType, false);
+                break;
+            }
+            case DetectorType::HARRIS: {
+                detKeypointsHarris(keypoints, imgGray, false);
+                break;
+            }
+            case DetectorType::ORB: {
+                detKeypointsModern(keypoints, imgGray, detectorType, false);
+                break;
+            }
+            case DetectorType::SHITOMASI: {
+                detKeypointsShiTomasi(keypoints, imgGray, false);
+                break;
+            }
+            case DetectorType::SIFT: {
+                detKeypointsModern(keypoints, imgGray, detectorType, false);
+                break;
+            }
         }
 
         // push keypoints and descriptor for current frame to end of data buffer
@@ -187,7 +193,7 @@ int main(int argc, const char *argv[])
         /* EXTRACT KEYPOINT DESCRIPTORS */
 
         cv::Mat descriptors;
-        string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
+        DescriptorType descriptorType = DescriptorType::BRISK;      // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
         descKeypoints(currentFrame.keypoints, currentFrame.cameraImg, descriptors, descriptorType);
 
         // push descriptors for current frame to end of data buffer
@@ -216,7 +222,7 @@ int main(int argc, const char *argv[])
 
             cout << "#7 : MATCH KEYPOINT DESCRIPTORS done" << endl;
 
-            
+
             /* TRACK 3D OBJECT BOUNDING BOXES */
 
             //// STUDENT ASSIGNMENT
@@ -227,10 +233,12 @@ int main(int argc, const char *argv[])
 
             // store matches in current data frame
             currentFrame.bbMatches = bbBestMatches;
+            cout << "bbBestMatches size: " << bbBestMatches.size() << endl;
 
             cout << "#8 : TRACK 3D OBJECT BOUNDING BOXES done" << endl;
 
-
+            // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
+            continue; // skips directly to the next image without processing what comes beneath
             /* COMPUTE TTC ON OBJECT IN FRONT */
 
             // loop over all BB match pairs

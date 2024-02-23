@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <numeric>
+#include <unordered_set>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
@@ -159,5 +160,66 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // ...
+    //TODO: stop passing matches because they are already stored in DataFrame
+    std::map<std::pair<int,int>, int> bbMatches;    //std::map<bounding box pair, number of occurences>
+
+    for (auto m : matches){
+        cv::KeyPoint kptPrev = prevFrame.keypoints[m.trainIdx];
+        cv::KeyPoint kptCurr = currFrame.keypoints[m.queryIdx];
+
+        int bb1ID, bb2ID;
+        bool kptCurrInBB = false, kptPrevInBB = false;
+        for (auto bb : currFrame.boundingBoxes){
+            if (bb.roi.contains(kptCurr.pt)){
+                bb1ID = bb.boxID;
+                bb.keypoints.push_back(kptCurr);
+                bb.kptMatches.push_back(m);
+                kptCurrInBB = true;
+                break;
+            }
+        }
+
+        for (auto bb : prevFrame.boundingBoxes){
+            if (bb.roi.contains(kptPrev.pt)){
+                bb2ID = bb.boxID;
+                bb.keypoints.push_back(kptPrev);
+                kptPrevInBB = true;
+                break;
+            }
+        }
+
+        if (kptCurrInBB && kptPrevInBB){        //only consider keypoint matches where both heypoints are in bounding boxes in their respective frames
+            std::pair<int,int> bbMatch (bb1ID, bb2ID);
+            if (bbMatches.count(bbMatch) > 0){
+                bbMatches[bbMatch] += 1;
+            }
+            else{
+                bbMatches[bbMatch] = 1;
+            }
+        }
+    }
+    
+    std::unordered_set<int> prevIDs;
+    // for every bounding box in the previous frame within the map, find out which bounding box in the current frame it is most frequently matched to
+    for (const auto& [bbPair1, count1] : bbMatches){
+        
+        if (prevIDs.contains(bbPair1.second)) continue;      // only process a prevFrame once
+        prevIDs.insert(bbPair1.second);
+
+        int maxCount = 0;
+        std::pair<int,int> bestPair;
+        for (const auto& [bbPair2, count2] : bbMatches){
+            if (bbPair1.second == bbPair2.second){
+                // get count and swap if larger than current count.
+                if (count2 > maxCount){
+                    maxCount = count2;
+                    bestPair = bbPair2;
+                }
+            }
+        }
+
+        // update the best bounding box match for the current prevFrame
+        bbBestMatches[bestPair.first] = bestPair.second;    //bbBestMatches[current Frame ID] = previous Frame ID;
+    }
+    
 }
