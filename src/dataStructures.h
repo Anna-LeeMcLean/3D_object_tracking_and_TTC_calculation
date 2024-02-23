@@ -37,4 +37,23 @@ struct DataFrame { // represents the available sensor information at the same ti
     std::map<int,int> bbMatches; // bounding box matches between previous and current frame
 };
 
+enum class DetectorType {
+    SHITOMASI,
+    HARRIS, 
+    FAST,
+    BRISK,
+    ORB,
+    AKAZE,
+    SIFT
+};
+
+enum class DescriptorType {
+    BRISK,
+    BRIEF, 
+    ORB, 
+    FREAK, 
+    AKAZE, 
+    SIFT
+};
+
 #endif /* dataStructures_h */
