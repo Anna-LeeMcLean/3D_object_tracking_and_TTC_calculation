@@ -135,7 +135,7 @@ int main(int argc, const char *argv[])
         bVis = true;
         if(bVis)
         {
-            show3DObjects(currentFrame.boundingBoxes, cv::Size(4.0, 20.0), cv::Size(500, 750), true);
+            show3DObjects(currentFrame.boundingBoxes, cv::Size(4.0, 20.0), cv::Size(1000, 800), true);
         }
         bVis = false;
 
@@ -237,8 +237,6 @@ int main(int argc, const char *argv[])
 
             cout << "#8 : TRACK 3D OBJECT BOUNDING BOXES done" << endl;
 
-            // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
-            continue; // skips directly to the next image without processing what comes beneath
             /* COMPUTE TTC ON OBJECT IN FRONT */
 
             // loop over all BB match pairs
@@ -275,7 +273,9 @@ int main(int argc, const char *argv[])
                     //// TASK FP.3 -> assign enclosed keypoint matches to bounding box (implement -> clusterKptMatchesWithROI)
                     //// TASK FP.4 -> compute time-to-collision based on camera (implement -> computeTTCCamera)
                     double ttcCamera;
-                    clusterKptMatchesWithROI(*currBB, previousFrame.keypoints, currentFrame.keypoints, currentFrame.kptMatches);                    
+                    clusterKptMatchesWithROI(*currBB, previousFrame.keypoints, currentFrame.keypoints, currentFrame.kptMatches); 
+                    // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
+                    continue; // skips directly to the next image without processing what comes beneath                   
                     computeTTCCamera(previousFrame.keypoints, currentFrame.keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera);
                     //// EOF STUDENT ASSIGNMENT
 

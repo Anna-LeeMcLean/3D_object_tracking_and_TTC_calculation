@@ -139,7 +139,33 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 // associate a given bounding box with the keypoints it contains
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
-    // ...
+    float distanceSum = 0.0;
+    std::vector<cv::DMatch> matchesInsideROI;
+
+    for (const cv::DMatch& match : kptMatches){
+        // check if both keypoints are in this bounding box
+        cv::KeyPoint kptPrev = kptsPrev[match.trainIdx];
+        cv::KeyPoint kptCurr = kptsCurr[match.queryIdx];
+        if (boundingBox.roi.contains(kptPrev.pt) && boundingBox.roi.contains(kptCurr.pt)){
+            distanceSum += match.distance;
+            matchesInsideROI.push_back(match);
+        } 
+    }
+
+    float distanceAvg = distanceSum / matchesInsideROI.size();
+    float distanceThreshold = 1.75;     // match distance must be less than (average + 75% of average)
+    float maxDistanceAllowed = distanceAvg * distanceThreshold;
+    std::cout << "distanceAvg: " << distanceAvg << std::endl;
+    std::cout << "maxDistanceAllowed: " << maxDistanceAllowed << std::endl;
+    
+    for (const cv::DMatch& match : matchesInsideROI){
+        // check if match distance is below threshold and add to bounding box match vector
+        if (match.distance <= maxDistanceAllowed) boundingBox.kptMatches.push_back(match);
+    }
+
+    //std::cout << "\nmatchesInsideROI.size(): " << matchesInsideROI.size() << std::endl;
+    //std::cout << "boundingBox.kptMatches.size(): " << boundingBox.kptMatches.size() << std::endl;
+
 }
 
 
@@ -154,7 +180,41 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // ...
+    // Step 1. Get closest lidar point in boundingbox to camera (ignore outliers)
+    // find average x values of lidar points in the previous and current frames
+    double xSumPrev, xSumCurr;
+    for (const auto& pt : lidarPointsPrev){
+        xSumPrev += pt.x;
+    }
+    for (const auto& pt : lidarPointsCurr){
+        xSumCurr += pt.x;
+    }
+    double xAvgPrev = xSumPrev/lidarPointsPrev.size();
+    double xAvgCurr = xSumCurr/lidarPointsCurr.size();
+
+    std::cout << "avgPrev: " << xAvgPrev << std::endl;
+    std::cout << "avgCurr: " << xAvgCurr << std::endl;
+
+    /*
+    // find the minimum x value in the previous and current frames that is at most some percentage of average x for that frame.
+    // this is done to filter out random outliers between the ego car and preceeding vehicle
+    double inf = std::numeric_limits<double>::infinity();
+    double xMinPrev = inf;
+    double xMinCurr = inf;
+    double maxXAllowed = 0.95;   // min x must be within 5% of average x value. E.g -> if average x is 10, largest min x allowed is 9.5
+    for (const auto& pt : lidarPointsPrev){
+        xMinPrev = ((pt.x >= xAvgPrev*maxXAllowed) && (pt.x < xMinPrev)) ? pt.x : xMinPrev;
+    }
+    for (const auto& pt : lidarPointsCurr){
+        xMinCurr = ((pt.x >= xAvgCurr*maxXAllowed) && (pt.x < xMinCurr)) ? pt.x : xMinCurr;
+    }
+    std::cout << "xMinPrev: " << xMinPrev << std::endl;
+    std::cout << "xMinCurr: " << xMinCurr << std::endl;
+    */
+
+    // Step 2. Calculate TTC
+    TTC = xAvgCurr * ((1/frameRate)/(xAvgPrev - xAvgCurr));
+    std::cout << "TTC: " << TTC << std::endl;
 }
 
 
@@ -173,7 +233,7 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
             if (bb.roi.contains(kptCurr.pt)){
                 bb1ID = bb.boxID;
                 bb.keypoints.push_back(kptCurr);
-                bb.kptMatches.push_back(m);
+                //bb.kptMatches.push_back(m);
                 kptCurrInBB = true;
                 break;
             }
