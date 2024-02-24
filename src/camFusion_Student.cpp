@@ -189,7 +189,7 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         }
 
         if (kptCurrInBB && kptPrevInBB){        //only consider keypoint matches where both heypoints are in bounding boxes in their respective frames
-            std::pair<int,int> bbMatch (bb1ID, bb2ID);
+            std::pair<int,int> bbMatch (bb2ID, bb1ID);
             if (bbMatches.count(bbMatch) > 0){
                 bbMatches[bbMatch] += 1;
             }
@@ -203,13 +203,13 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
     // for every bounding box in the previous frame within the map, find out which bounding box in the current frame it is most frequently matched to
     for (const auto& [bbPair1, count1] : bbMatches){
         
-        if (prevIDs.contains(bbPair1.second)) continue;      // only process a prevFrame once
-        prevIDs.insert(bbPair1.second);
+        if (prevIDs.contains(bbPair1.first)) continue;      // only process a prevFrame once
+        prevIDs.insert(bbPair1.first);
 
         int maxCount = 0;
         std::pair<int,int> bestPair;
         for (const auto& [bbPair2, count2] : bbMatches){
-            if (bbPair1.second == bbPair2.second){
+            if (bbPair1.first == bbPair2.first){
                 // get count and swap if larger than current count.
                 if (count2 > maxCount){
                     maxCount = count2;
@@ -219,7 +219,7 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         }
 
         // update the best bounding box match for the current prevFrame
-        bbBestMatches[bestPair.first] = bestPair.second;    //bbBestMatches[current Frame ID] = previous Frame ID;
+        bbBestMatches[bestPair.first] = bestPair.second;    //bbBestMatches[previous Frame ID] = current Frame ID;
     }
     
 }
