@@ -233,7 +233,6 @@ int main(int argc, const char *argv[])
 
             // store matches in current data frame
             currentFrame.bbMatches = bbBestMatches;
-            cout << "bbBestMatches size: " << bbBestMatches.size() << endl;
 
             cout << "#8 : TRACK 3D OBJECT BOUNDING BOXES done" << endl;
 
@@ -273,9 +272,7 @@ int main(int argc, const char *argv[])
                     //// TASK FP.3 -> assign enclosed keypoint matches to bounding box (implement -> clusterKptMatchesWithROI)
                     //// TASK FP.4 -> compute time-to-collision based on camera (implement -> computeTTCCamera)
                     double ttcCamera;
-                    clusterKptMatchesWithROI(*currBB, previousFrame.keypoints, currentFrame.keypoints, currentFrame.kptMatches); 
-                    // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
-                    continue; // skips directly to the next image without processing what comes beneath                   
+                    clusterKptMatchesWithROI(*currBB, previousFrame.keypoints, currentFrame.keypoints, currentFrame.kptMatches);                  
                     computeTTCCamera(previousFrame.keypoints, currentFrame.keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera);
                     //// EOF STUDENT ASSIGNMENT
 
