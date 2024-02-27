@@ -144,8 +144,8 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 
     for (const cv::DMatch& match : kptMatches){
         // check if both keypoints are in this bounding box
-        cv::KeyPoint kptPrev = kptsPrev[match.trainIdx];
-        cv::KeyPoint kptCurr = kptsCurr[match.queryIdx];
+        cv::KeyPoint kptPrev = kptsPrev[match.queryIdx];
+        cv::KeyPoint kptCurr = kptsCurr[match.trainIdx];
         if (boundingBox.roi.contains(kptPrev.pt) && boundingBox.roi.contains(kptCurr.pt)){
             distanceSum += match.distance;
             matchesInsideROI.push_back(match);
@@ -155,14 +155,26 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
     float distanceAvg = distanceSum / matchesInsideROI.size();
     float distanceThreshold = 1.75;     // match distance must be less than (average + 75% of average)
     float maxDistanceAllowed = distanceAvg * distanceThreshold;
-    std::cout << "distanceAvg: " << distanceAvg << std::endl;
-    std::cout << "maxDistanceAllowed: " << maxDistanceAllowed << std::endl;
+    //std::cout << "distanceAvg: " << distanceAvg << std::endl;
+    //std::cout << "maxDistanceAllowed: " << maxDistanceAllowed << std::endl;
     
     for (const cv::DMatch& match : matchesInsideROI){
         // check if match distance is below threshold and add to bounding box match vector
         if (match.distance <= maxDistanceAllowed) boundingBox.kptMatches.push_back(match);
     }
 
+    // TODO: Fill out boundingBox.keypoints
+    // get keypoints in current and previous bounding boxes
+    /*
+    std::vector<cv::KeyPoint> kptsCurrBB, kptsPrevBB;
+
+    for (const auto& match : boundingBox.kptMatches){
+        cv::KeyPoint kptPrev = kptsPrev[match.queryIdx];
+        cv::KeyPoint kptCurr = kptsCurr[match.trainIdx];
+        boundingBox.keypoints.push_back(kptPrev);
+        kptsCurrBB.push_back(kptCurr);
+    }
+    */
     //std::cout << "\nmatchesInsideROI.size(): " << matchesInsideROI.size() << std::endl;
     //std::cout << "boundingBox.kptMatches.size(): " << boundingBox.kptMatches.size() << std::endl;
 
@@ -173,7 +185,34 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, 
                       std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
 {
-    // ...
+    // find the highest and lowest keypoints in each bounding box
+    std::vector<double> ratios;
+    for (auto kptMatch1 = kptMatches.begin(); kptMatch1 != kptMatches.end(); kptMatch1++){
+        cv::KeyPoint kptPrev1 = kptsPrev[kptMatch1->queryIdx];
+        cv::KeyPoint kptCurr1 = kptsCurr[kptMatch1->trainIdx];
+
+        for (auto kptMatch2 = kptMatches.begin(); kptMatch2 != kptMatches.end(); kptMatch2++){
+
+            cv::KeyPoint kptPrev2 = kptsPrev[kptMatch2->queryIdx];
+            cv::KeyPoint kptCurr2 = kptsCurr[kptMatch2->trainIdx];
+
+            if (kptPrev1.pt != kptPrev2.pt){
+                double distP = cv::norm(kptPrev1.pt - kptPrev2.pt);
+                double distC = cv::norm(kptCurr1.pt - kptCurr2.pt);
+
+                if (distC >= 100) ratios.push_back(distC/distP);
+            }
+        }
+    }
+    
+    // find median ratio and use it for TTC calculation
+    std::sort(ratios.begin(), ratios.end());
+    double ratioMedian = ratios[floor(ratios.size()/2)];
+
+    // comput ttc based on height ratio
+    TTC = -(1/frameRate) / (1 - ratioMedian);
+
+    std::cout << "TTC camera: " << TTC << std::endl;
 }
 
 
@@ -192,29 +231,9 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     double xAvgPrev = xSumPrev/lidarPointsPrev.size();
     double xAvgCurr = xSumCurr/lidarPointsCurr.size();
 
-    std::cout << "avgPrev: " << xAvgPrev << std::endl;
-    std::cout << "avgCurr: " << xAvgCurr << std::endl;
-
-    /*
-    // find the minimum x value in the previous and current frames that is at most some percentage of average x for that frame.
-    // this is done to filter out random outliers between the ego car and preceeding vehicle
-    double inf = std::numeric_limits<double>::infinity();
-    double xMinPrev = inf;
-    double xMinCurr = inf;
-    double maxXAllowed = 0.95;   // min x must be within 5% of average x value. E.g -> if average x is 10, largest min x allowed is 9.5
-    for (const auto& pt : lidarPointsPrev){
-        xMinPrev = ((pt.x >= xAvgPrev*maxXAllowed) && (pt.x < xMinPrev)) ? pt.x : xMinPrev;
-    }
-    for (const auto& pt : lidarPointsCurr){
-        xMinCurr = ((pt.x >= xAvgCurr*maxXAllowed) && (pt.x < xMinCurr)) ? pt.x : xMinCurr;
-    }
-    std::cout << "xMinPrev: " << xMinPrev << std::endl;
-    std::cout << "xMinCurr: " << xMinCurr << std::endl;
-    */
-
     // Step 2. Calculate TTC
     TTC = xAvgCurr * ((1/frameRate)/(xAvgPrev - xAvgCurr));
-    std::cout << "TTC: " << TTC << std::endl;
+    //std::cout << "TTC LiDAR: " << TTC << std::endl;
 }
 
 
@@ -224,8 +243,8 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
     std::map<std::pair<int,int>, int> bbMatches;    //std::map<bounding box pair, number of occurences>
 
     for (auto m : matches){
-        cv::KeyPoint kptPrev = prevFrame.keypoints[m.trainIdx];
-        cv::KeyPoint kptCurr = currFrame.keypoints[m.queryIdx];
+        cv::KeyPoint kptPrev = prevFrame.keypoints[m.queryIdx];
+        cv::KeyPoint kptCurr = currFrame.keypoints[m.trainIdx];
 
         int bb1ID, bb2ID;
         bool kptCurrInBB = false, kptPrevInBB = false;
@@ -233,7 +252,6 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
             if (bb.roi.contains(kptCurr.pt)){
                 bb1ID = bb.boxID;
                 bb.keypoints.push_back(kptCurr);
-                //bb.kptMatches.push_back(m);
                 kptCurrInBB = true;
                 break;
             }
@@ -248,7 +266,7 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
             }
         }
 
-        if (kptCurrInBB && kptPrevInBB){        //only consider keypoint matches where both heypoints are in bounding boxes in their respective frames
+        if (kptCurrInBB && kptPrevInBB){        //only consider keypoint matches where both keypoints are in bounding boxes in their respective frames
             std::pair<int,int> bbMatch (bb2ID, bb1ID);
             if (bbMatches.count(bbMatch) > 0){
                 bbMatches[bbMatch] += 1;
@@ -281,5 +299,4 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         // update the best bounding box match for the current prevFrame
         bbBestMatches[bestPair.first] = bestPair.second;    //bbBestMatches[previous Frame ID] = current Frame ID;
     }
-    
 }
