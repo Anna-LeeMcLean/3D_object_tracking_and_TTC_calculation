@@ -21,7 +21,7 @@ TTC = d1 * (dT / (d0-d1))
 
 *d1 - distance between ego car and preceding vehicle in current frame; d0 - distance between ego car and preceding vehicle in previous frame*
 
-d1 and d0 were estimated using the mean of all the values for each LiDAR point in the respective frames. Only LiDAR points within the region of interest were considered. A mean estimate of the preceding vehicle distance was done instead of using the closest data point in order to reduce the effect of outliers due to noise. This method however does not completely filter out the noise effect which has seemingly resulted in an increase of the TTC estimate for images 3 and 17 in Figure 3. 
+d1 and d0 were estimated using the median of all the values for each LiDAR point in the respective frames. Only LiDAR points within the region of interest were considered. A median estimate of the preceding vehicle distance was done instead of using the closest data point in order to reduce the effect of outliers due to noise. This method however does not completely filter out the noise effect which has seemingly resulted in an increase of the TTC estimate for images 3 and 17 in Figure 3. 
 
 ## TTC Estimates using Feature Keypoints from Camera Image
 
