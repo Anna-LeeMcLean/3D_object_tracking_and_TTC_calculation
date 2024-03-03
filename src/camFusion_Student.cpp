@@ -140,15 +140,16 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
     float distanceSum = 0.0;
-    std::vector<cv::DMatch> matchesInsideROI;
+    std::map<cv::DMatch, double> matchesInsideROI;
 
     for (const cv::DMatch& match : kptMatches){
         // check if both keypoints are in this bounding box
         cv::KeyPoint kptPrev = kptsPrev[match.queryIdx];
         cv::KeyPoint kptCurr = kptsCurr[match.trainIdx];
         if (boundingBox.roi.contains(kptPrev.pt) && boundingBox.roi.contains(kptCurr.pt)){
-            distanceSum += match.distance;
-            matchesInsideROI.push_back(match);
+            double dist = cv::norm(kptPrev.pt - kptCurr.pt);
+            distanceSum += dist;
+            matchesInsideROI[match] = dist;
         } 
     }
 
@@ -158,10 +159,13 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
     //std::cout << "distanceAvg: " << distanceAvg << std::endl;
     //std::cout << "maxDistanceAllowed: " << maxDistanceAllowed << std::endl;
     
-    for (const cv::DMatch& match : matchesInsideROI){
+    for (const auto& [match, euclidDist] : matchesInsideROI){
         // check if match distance is below threshold and add to bounding box match vector
-        if (match.distance <= maxDistanceAllowed) boundingBox.kptMatches.push_back(match);
+        if (euclidDist <= maxDistanceAllowed) boundingBox.kptMatches.push_back(match);
     }
+
+    //std::cout << "# of matches in roi: " << matchesInsideROI.size() << std::endl;
+    //std::cout << "# of matches in roi within threshold: " << boundingBox.kptMatches.size() << std::endl;
 
     // TODO: Fill out boundingBox.keypoints
     // get keypoints in current and previous bounding boxes
@@ -175,9 +179,6 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
         kptsCurrBB.push_back(kptCurr);
     }
     */
-    //std::cout << "\nmatchesInsideROI.size(): " << matchesInsideROI.size() << std::endl;
-    //std::cout << "boundingBox.kptMatches.size(): " << boundingBox.kptMatches.size() << std::endl;
-
 }
 
 
@@ -220,20 +221,24 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
     // Step 1. Get closest lidar point in boundingbox to camera (ignore outliers)
-    // find average x values of lidar points in the previous and current frames
-    double xSumPrev, xSumCurr;
+    // find median x values of lidar points in the previous and current frames
+    std::vector<double> lidarPrevx;
     for (const auto& pt : lidarPointsPrev){
-        xSumPrev += pt.x;
+        lidarPrevx.push_back(pt.x);
     }
+    std::sort(lidarPrevx.begin(), lidarPrevx.end());
+    double xPrevMedian = lidarPrevx[floor(lidarPrevx.size()/2)];
+
+    std::vector<double> lidarCurrx;
     for (const auto& pt : lidarPointsCurr){
-        xSumCurr += pt.x;
+        lidarCurrx.push_back(pt.x);
     }
-    double xAvgPrev = xSumPrev/lidarPointsPrev.size();
-    double xAvgCurr = xSumCurr/lidarPointsCurr.size();
+    std::sort(lidarCurrx.begin(), lidarCurrx.end());
+    double xCurrMedian = lidarCurrx[floor(lidarCurrx.size()/2)];
 
     // Step 2. Calculate TTC
-    TTC = xAvgCurr * ((1/frameRate)/(xAvgPrev - xAvgCurr));
-    //std::cout << "TTC LiDAR: " << TTC << std::endl;
+    TTC = xCurrMedian * ((1/frameRate)/(xPrevMedian - xCurrMedian));
+    std::cout << "TTC LiDAR: " << TTC << std::endl;
 }
 
 
