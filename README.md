@@ -1,5 +1,5 @@
 # 3D_object_tracking_and_TTC_calculation
-This project was done in order to track preceding objects on a highway and compute the Time-To-Collision (TTC) with an ego car. Two estimates for the TTC were calculated for each of the eighteen (18) image frames using image keypoints from a camera and LiDAR measurements. The image stream shows 18 images where the preceding vehicle slows down and the distance between it and the ego car gradually decreases.
+This project tracks preceding objects on a highway and computes the Time-To-Collision (TTC) with an ego car. Two estimates for the TTC were calculated for each of the eighteen (18) image frames using image keypoints from camera images and LiDAR data. The image stream shows 18 images where the preceding vehicle slows down and the distance between it and the ego car gradually decreases.
 
 ![image](https://github.com/Anna-LeeMcLean/3D_object_tracking_and_TTC_calculation/assets/60242931/70b5fa16-1229-4c7e-9995-2bffddc8ff10)
 
@@ -21,11 +21,11 @@ TTC = d1 * (dT / (d0-d1))
 
 *d1 - distance between ego car and preceding vehicle in current frame; d0 - distance between ego car and preceding vehicle in previous frame*
 
-d1 and d0 were estimated using the median of all the values for each LiDAR point in the respective frames. Only LiDAR points within the region of interest were considered. A median estimate of the preceding vehicle distance was done instead of using the closest data point in order to reduce the effect of outliers due to noise. This method however does not completely filter out the noise effect which has seemingly resulted in an increase of the TTC estimate for images 3 and 17 in Figure 3. 
+d1 and d0 were estimated using the median of all LiDAR points in the region of interest for respective frames. Median estimates were used instead of choosing the closest data point; this was to reduce the effect of outliers due to noise. This method, while effective, is not perfect because we can still see an increase in the TTC estimate for images 3 and 17 in Figure 3. 
 
 ## TTC Estimates using Feature Keypoints from Camera Image
 
-A second TTC estimate was calculated for the same dataset using distance ratios between keypoints in consecutive camera images. A keypoint detector/descriptor combo was used to detect, describe and match keypoints for every image frame. The keypoint matches allowed for tracking of all vehicle bounding boxes between camera frames. This was done by determining which two bounding boxes in the previous and current frames held the keypoints in a matching keypoint pair. However, due to unavoidable keypoint mismatches, it is therefore possible to mismatch bounding boxes. To avoid matching bounding boxes using mismatched keypoints, every bounding box in the previous frame was matched with its most frequently matched partner in the current frame. Once the best bounding box matches are determined, the distances between multiple keypoints in a bounding box are determined and the same done for the matching keypoints in the matching bounding box. The distances allow us to get an estimate of the TTC using the following equation:
+A second TTC estimate was calculated for the same dataset using distance ratios between keypoints in consecutive camera images. A keypoint detector/descriptor combo was used to detect, describe and match keypoints for every image frame. The matching keypoints were used to match bounding boxes which came from the obstacle detection pipeline. Once the best bounding box matches are determined, the distances between multiple keypoints in a bounding box are determined and the same done for the matching keypoints in the matching bounding box. The distances allow us to get an estimate of the TTC using the following equation:
 
 TTC = - (dT / (1 - h1/h0))
 
